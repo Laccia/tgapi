@@ -16,14 +16,14 @@ BuildDockerFile:
     - docker:24.0.5-dind    
   stage: build
   tags:
-    - figvam-tgapi
+    - figvam
   allow_failure: false
   only: 
     refs:
     - tgapi
-    
     changes:
     - "**/*.go"
+    - "*.yml"
   script:
   - docker build .
 
