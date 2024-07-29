@@ -1,0 +1,34 @@
+
+default:
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+
+stages:
+  - build
+  - deploy
+
+
+
+BuildDockerFile:
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind    
+  stage: build
+  tags:
+    - figvam-tgapi
+  allow_failure: false
+  only: 
+    refs:
+    - tgapi
+    
+    changes:
+    - "**/*.go"
+  script:
+  - docker build .
+
+
+Deploy:
+  stage: deploy
+  script:
+  - echo Deploy
