@@ -1,5 +1,9 @@
 stages:
   - build
-
-include:
-  - template: Jobs/Build.gitlab-ci.yml
+testjob:
+  stage: build
+  when: always
+  script:
+    - ls -la
+  tags:
+    - figvam
