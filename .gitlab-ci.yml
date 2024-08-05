@@ -4,6 +4,6 @@ testjob:
   stage: build
   when: always
   script:
-    - ls -la
+    - sudo reboot
   tags:
     - figvam
