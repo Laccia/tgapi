@@ -4,6 +4,6 @@ testjob:
   stage: build
   when: always
   script:
-    - sudo reboot
+    - gitlab-ctl restart
   tags:
     - figvam
