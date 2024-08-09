@@ -1,9 +1,5 @@
 stages:
   - build
-testjob:
-  stage: build
-  when: always
-  script:
-    - gitlab-ctl restart
-  tags:
-    - figvam
+
+include:
+  - template: Jobs/Build.gitlab-ci.yml
