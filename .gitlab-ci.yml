@@ -3,4 +3,6 @@ stages:
   - test
 
 include:
-  - template: Auto-DevOps.gitlab-ci.yml
+  - template: Jobs/Build.gitlab-ci.yml
+  - template: Jobs/Code-Intelligence.gitlab-ci.yml
+  - template: Jobs/Code-Quality.gitlab-ci.yml
