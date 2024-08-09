@@ -1,23 +1,38 @@
-### Builder
-FROM golang:1.22.5 AS builder
+ARG GO_VERSION=1.22
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
+WORKDIR /src
 
-RUN mkdir -p /app /src/src
-WORKDIR /gopath_dir/src/tgapi
-ENV GOPATH /gopath_dir
-ENV GOBIN $GOPATH/bin
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    go mod download -x
 
-COPY go.sum $GOPATH/src/tgapi
-COPY go.mod $GOPATH/src/tgapi
-RUN go mod download
-COPY . $GOPATH/src/tgapi
+ARG TARGETARCH
 
-### Go opts
-ENV GOOS=linux
-ENV GOARCH=amd64
-ENV CGO_ENABLED=0
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=bind,target=. \
+    CGO_ENABLED=0 GOARCH=$TARGETARCH go build -o /bin/tgapi .
 
-RUN go get -u ./... &&\ 
-    go build -o $BUILD_BIN_PATH ./cmd/app &&\
-    rm -rf /src
+FROM alpine:3.20.2 AS final
 
-CMD $BIN_PATH
+RUN --mount=type=cache,target=/var/cache/apk \
+    apk --update add \
+        ca-certificates \
+        tzdata \
+        && \
+        update-ca-certificates
+
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
+USER appuser
+
+COPY --from=build /bin/tgapi /bin/
+
+ENTRYPOINT [ "/bin/tgapi" ]
