@@ -75,8 +75,6 @@ type AppConfigParseStruct struct {
 	LogLevel    pkg.LogLevel       `mapstructure:"LEVEL"`
 	Format      pkg.LogFormat      `mapstructure:"FORMAT"`
 	Destination pkg.LogDestination `mapstructure:"DESTINATION"`
-	LogFile     string             `mapstructure:"LOG_FILE"`
-	LogDir      string             `mapstructure:"LOG_DIR"`
 }
 
 func GetAppConfig() (*Appconfig, error) {
@@ -132,7 +130,6 @@ func GetAppConfig() (*Appconfig, error) {
 		Level:       cfgParse.LogLevel,
 		Destination: cfg.LogCfg.Destination,
 		Format:      cfg.LogCfg.Format,
-		File:        cfgParse.LogFile,
 	}
 
 	return cfg, nil

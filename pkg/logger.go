@@ -12,8 +12,6 @@ type Config struct {
 	Level       LogLevel
 	Format      LogFormat
 	Destination LogDestination
-	File        string
-	Dir         string
 }
 
 // parseLevel парсинг уровня логгирования из пришедшей структуры конфигов
