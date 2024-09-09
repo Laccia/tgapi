@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,7 +9,6 @@ import (
 	"tgapiV2/internal/pg"
 	"tgapiV2/internal/secret"
 	"tgapiV2/internal/server"
-	"time"
 
 	"tgapiV2/internal/tgap"
 
@@ -32,17 +30,11 @@ func Run(
 
 	router := handler.SetRoutes()
 	log.Info().Str("comp:", "app/set routes").Msg("Routes set")
-	srv := http.Server{
-		Addr:              ":" + cfg.ServicePort,
-		Handler:           router,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
 
-	//Start server
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error().Err(err).Str("comp:", "app/listenAndServe").Msg("error while start server")
-			return
+		err := router.Start(":" + cfg.ServicePort)
+		if err != nil {
+			log.Fatal().Err(err).Str("Server", "Start").Msg("Error while starting server")
 		}
 	}()
 

@@ -9,8 +9,10 @@ import (
 )
 
 func newConsoleWriter(format LogFormat, dest io.Writer) io.Writer {
+
 	w := zerolog.NewConsoleWriter()
 	// устанавливаем значения вывода в пришедший из newLogWriter dest
+
 	w.Out = dest
 
 	switch format {

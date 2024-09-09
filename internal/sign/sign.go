@@ -8,11 +8,9 @@ import (
 	"os"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gotd/td/telegram/auth"
 	"github.com/gotd/td/tg"
-	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 )
@@ -53,20 +51,8 @@ func (Sign) Password(_ context.Context) (string, error) {
 
 func (Sign) Code(ctx context.Context, sentCode *tg.AuthSentCode) (string, error) {
 
-	code := os.Getenv("CODE")
-
-	for code == "" {
-		err := godotenv.Overload(".env")
-		if err != nil {
-			return "", err
-		}
-		code = os.Getenv("CODE")
-		log.Info().Str("AUTH", "SignIn").Msg("Waiting 2FA code")
-		time.Sleep(1 * time.Second)
-		if code != "" {
-			break
-		}
-	}
+	log.Info().Str("AUTH", "SignIn").Msg("Waiting 2FA code")
+	code := <-CodeCH
 
 	return strings.TrimSpace(code), nil
 }

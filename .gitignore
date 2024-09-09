@@ -1,5 +1,3 @@
 *.json
 .env
-.gitlab-ci.yml
-.Dockerfile
-.Dockerignore
+*.yml

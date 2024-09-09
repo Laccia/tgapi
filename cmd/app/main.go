@@ -17,7 +17,7 @@ func main() {
 
 	log.Logger = pkg.NewLogger(cfg.LogCfg)
 
-	log.Info().Str("comp:", "main").Msg("лог работает")
+	log.Info().Str("comp:", "main").Msg("log initiated")
 	//Start Application
 	err = app.Run(cfg, log.Logger)
 

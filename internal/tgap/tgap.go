@@ -34,21 +34,18 @@ func NewClient(ctx context.Context,
 
 	flow := auth.NewFlow(sign.Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowAppHash: true})
 
-	client, err := telegram.ClientFromEnvironment(telegram.Options{
-		UpdateHandler: gaps,
+	client, err := telegram.ClientFromEnvironment(telegram.Options{UpdateHandler: gaps,
 		Middlewares: []telegram.Middleware{
 			updhook.UpdateHook(gaps.Handle),
-		},
-	})
+		}})
 	if err != nil {
 		return err
 	}
-
 	// Setup message update handlers.
 	d.OnNewChannelMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewChannelMessage) error {
 		logger.Info().Any("asd", update.Message).Msg("message")
 		msg := update.Message
-		err = parser.MessageParse(ctx, msg, db, cfg.Chats)
+		err := parser.MessageParse(ctx, msg, db, cfg.Chats)
 		if err != nil {
 			logger.Err(err).Str("OnChannel", "message").Msg("err while parse message")
 		}
@@ -57,7 +54,7 @@ func NewClient(ctx context.Context,
 	d.OnNewMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewMessage) error {
 		logger.Info().Any("asd", update.Message).Msg("message")
 		msg := update.Message
-		err = parser.MessageParse(ctx, msg, db, cfg.Chats)
+		err := parser.MessageParse(ctx, msg, db, cfg.Chats)
 		if err != nil {
 			logger.Err(err).Str("OnChannel", "message").Msg("err while parse message")
 		}
@@ -65,6 +62,7 @@ func NewClient(ctx context.Context,
 	})
 
 	return client.Run(ctx, func(ctx context.Context) error {
+
 		// Perform auth if no session is available.
 		if err := client.Auth().IfNecessary(ctx, flow); err != nil {
 			return errors.Wrap(err, "auth")
@@ -78,6 +76,7 @@ func NewClient(ctx context.Context,
 
 		return gaps.Run(ctx, client.API(), user.ID, updates.AuthOptions{
 			OnStart: func(ctx context.Context) {
+
 				logger.Info().Str("comp:", "main").Msg("Application started")
 			},
 		})

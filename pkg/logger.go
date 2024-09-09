@@ -12,6 +12,8 @@ type Config struct {
 	Level       LogLevel
 	Format      LogFormat
 	Destination LogDestination
+	File        string
+	Dir         string
 }
 
 // parseLevel парсинг уровня логгирования из пришедшей структуры конфигов
@@ -26,6 +28,7 @@ func parseLevel(level LogLevel) (zerolog.Level, error) {
 
 // newLogWriter создает экзепляр io.Writer с определением назначения вывода
 func newLogWriter(dest LogDestination, format LogFormat) io.Writer {
+
 	// указание, куда писать (по дефолту stdout)
 	switch dest {
 	case LogDestinationConsoleOut:
@@ -51,6 +54,6 @@ func NewLogger(config Config) zerolog.Logger {
 	logger := zerolog.
 		New(writer).
 		Level(level)
-
 	return logger
+
 }

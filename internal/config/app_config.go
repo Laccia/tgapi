@@ -25,7 +25,7 @@ type Dbconfig struct {
 }
 
 type TGconfig struct {
-	ID    string
+	ID    int
 	Hash  string
 	File  string
 	Dir   string
@@ -55,7 +55,7 @@ type AppConfigParseStruct struct {
 	PGBase string `mapstructure:"PH_BASE"`
 
 	//TG config
-	APPID           string  `mapstructure:"TG_APP_ID"`
+	APPID           int     `mapstructure:"TG_APP_ID"`
 	APPHash         string  `mapstructure:"TG_APP_HASH"`
 	SessionFile     string  `mapstructure:"SESSION_FILE"`
 	SessionDir      string  `mapstructure:"SESSION_DIR"`
@@ -75,16 +75,22 @@ type AppConfigParseStruct struct {
 	LogLevel    pkg.LogLevel       `mapstructure:"LEVEL"`
 	Format      pkg.LogFormat      `mapstructure:"FORMAT"`
 	Destination pkg.LogDestination `mapstructure:"DESTINATION"`
+	LogFile     string             `mapstructure:"LOG_FILE"`
+	LogDir      string             `mapstructure:"LOG_DIR"`
 }
 
 func GetAppConfig() (*Appconfig, error) {
 	viper.SetDefault("TG_SESSION_FILE", "utils/session.json")
 	viper.SetDefault("TG_SESSION_DIR", "utils")
 	viper.SetDefault("TG_SESSION_TEMPLATE", "/app/files/template.json")
+	viper.SetDefault("PG_HOST", "postgres://postgres:password@localhost:5432/tg")
+	viper.SetDefault("VT_MOUNT_PATH", "kv")
+	viper.SetDefault("VT_READ_PAT", "my-secret-password")
+	viper.SetDefault("PORT", "8000")
 
 	viper.SetDefault("LEVEL", "info")
 	viper.SetDefault("FORMAT", 0)
-	viper.SetDefault("DESTINATION", 1)
+	viper.SetDefault("DESTINATION", 3)
 	viper.SetDefault("PHONE_NUMBER", "+79001411695")
 
 	cfgParse := &AppConfigParseStruct{}
@@ -126,6 +132,7 @@ func GetAppConfig() (*Appconfig, error) {
 		Level:       cfgParse.LogLevel,
 		Destination: cfg.LogCfg.Destination,
 		Format:      cfg.LogCfg.Format,
+		File:        cfgParse.LogFile,
 	}
 
 	return cfg, nil

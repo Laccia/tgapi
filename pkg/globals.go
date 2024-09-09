@@ -14,6 +14,8 @@ const (
 	LogFormatCEFGPN
 )
 
+type LogFile string
+
 // LogDestination custom type for logger destination.
 type LogDestination int64
 
