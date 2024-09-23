@@ -6,8 +6,10 @@ import (
 	"os"
 	"tgapiV2/internal/config"
 
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -40,13 +42,31 @@ func newPg(ctx context.Context,
 
 	log.Info().Str("comp", "PG").Msg("connected")
 
-	Start(db)
+	// Start(db)
+	err = migration(ctx, db)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	log.Info()
 	return db
 
 }
 
 func Start(con *pgxpool.Pool) {
+
+	// m, err := migrate.New(
+	// 	"./internal/migrations/*sql",
+	// 	"postgres://postgres:postgres@localhost:5432/example?sslmode=disable")
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	log.Fatal()
+	// }
+	// if err := m.Up(); err != nil {
+	// 	fmt.Println(err)
+	// 	log.Fatal()
+	// }
+
 	ctx := context.Background()
 
 	tmp, err := con.Query(ctx, msgTable)
@@ -93,3 +113,53 @@ func (p *DB) AddMsgPG(ctx context.Context, msg []byte, id int64) error {
 const (
 	NewMsg = `INSERT INTO tgmsg (msg, chat) VALUES (@msg, @chat);`
 )
+
+func migration(ctx context.Context, db *pgxpool.Pool) error {
+	files, err := os.ReadDir("internal/migrations/")
+	if err != nil {
+		return fmt.Errorf("read migrations dir error: %s", err)
+	}
+
+	migrations := []string{}
+
+	if len(files) < 1 {
+		return fmt.Errorf("migrations not found")
+	}
+
+	for _, v := range files {
+		filename := fmt.Sprintf("%s/%s", "internal/migrations", v.Name())
+		content, errRead := os.ReadFile(filename)
+		if errRead != nil {
+			return fmt.Errorf("failed to read migration file: %s, filename: %s", errRead, filename)
+		}
+
+		migrations = append(migrations, string(content))
+	}
+
+	fmt.Println(migrations)
+
+	if len(migrations) < 1 {
+		return fmt.Errorf("migrations not found")
+	}
+
+	for _, m := range migrations {
+		tx, errTx := db.Begin(context.Background())
+		if errTx != nil {
+			return fmt.Errorf("%s fail migrations", errTx)
+		}
+
+		rows, err := tx.Exec(ctx, m)
+		if err != nil {
+			tx.Rollback(ctx)
+
+			return fmt.Errorf("%s fail query migration", err)
+		}
+		rows.String()
+		err = tx.Commit(ctx)
+		if err != nil {
+			return fmt.Errorf("%s fail Commit migration", err)
+		}
+	}
+
+	return err
+}
