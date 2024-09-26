@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"tgapiV2/internal/config"
 	"tgapiV2/internal/parser"
 	"tgapiV2/internal/pg"
@@ -76,47 +75,19 @@ func NewClient(ctx context.Context,
 			return errors.Wrap(err, "call self")
 		}
 
-		// _, err = client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-		// 	Peer: &tg.InputPeerChannel{
-		// 		ChannelID:  -1002065788839,
-		// 		AccessHash: user.AccessHash,
-		// 	},
-		// })
-		// if err != nil {
-		// 	fmt.Println(err)
-		// }
-
 		return gaps.Run(ctx, client.API(), user.ID, updates.AuthOptions{
 			OnStart: func(ctx context.Context) {
 
-				err := parser.DialogsParse(ctx, client)
+				err := parser.DialogsParse(ctx, client, db, cfg.Chats)
 				if err != nil {
 					fmt.Println(err)
-					os.Exit(1)
+					logger.Err(err).Str("comp", "main").Msg("Error while download history")
 				}
 
+				logger.Info().Str("comp:", "main").Msg("History successfully downloaded")
+
 				logger.Info().Str("comp:", "main").Msg("Application started")
-				// fmt.Println(user.AccessHash)
-				// kk, err := client.API().MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{Limit: 1, OffsetPeer: &tg.InputPeerChannel{ChannelID: 1195476893}})
-				// if err != nil {
-				// 	fmt.Println(err)
-				// }
-				// fmt.Println(kk.String())
-				// dialogs, err := json.MarshalIndent(kk, "", "")
 
-				// os.WriteFile("utils/dialogs.json", dialogs, 0644)
-
-				// hist, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{Limit: 100,
-				// 	Peer: &tg.InputPeerChannel{
-				// 		ChannelID:  1195476893,
-				// 		AccessHash: -2798995115427651093,
-				// 	},
-				// })
-				// if err != nil {
-				// 	fmt.Println(err)
-				// }
-				// history, err := json.MarshalIndent(hist, "", "")
-				// os.WriteFile("utils/history.json", history, 0644)
 			},
 		})
 	})

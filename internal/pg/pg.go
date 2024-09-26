@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"tgapiV2/internal/config"
+	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5"
@@ -110,8 +111,30 @@ func (p *DB) AddMsgPG(ctx context.Context, msg []byte, id int64) error {
 	return nil
 }
 
+func (p *DB) AddHistPG(ctx context.Context, msg string, msgid int64, date uint64, id int64) error {
+
+	stamp := time.Unix(int64(date), 0)
+
+	args := pgx.NamedArgs{
+		"msg":      msg,
+		"msg_id":   msgid,
+		"msg_date": stamp,
+		"chat_id":  id,
+	}
+
+	tag, err := p.db.Exec(ctx, HistoryMsg, args)
+	if err != nil {
+		return err
+	}
+	fmt.Println("\n", tag)
+
+	return nil
+}
+
 const (
 	NewMsg = `INSERT INTO tgmsg (msg, chat) VALUES (@msg, @chat);`
+
+	HistoryMsg = `INSERT INTO tghistory (msg, msg_id, msg_date, chat_id) VALUES (@msg, @msg_id, @msg_date, @chat_id)`
 )
 
 func migration(ctx context.Context, db *pgxpool.Pool) error {
@@ -148,13 +171,13 @@ func migration(ctx context.Context, db *pgxpool.Pool) error {
 			return fmt.Errorf("%s fail migrations", errTx)
 		}
 
-		rows, err := tx.Exec(ctx, m)
+		rows, err := tx.Query(ctx, m)
 		if err != nil {
 			tx.Rollback(ctx)
 
 			return fmt.Errorf("%s fail query migration", err)
 		}
-		rows.String()
+		rows.Close()
 		err = tx.Commit(ctx)
 		if err != nil {
 			return fmt.Errorf("%s fail Commit migration", err)
