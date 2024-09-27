@@ -1,6 +1,5 @@
 stages:
-  - build
-  - test
+  - build  
   - review
   - staging
   - canary
@@ -12,8 +11,6 @@ stages:
   - cleanup
 
 include:
-  - template: Jobs/Build.gitlab-ci.yml
-  - template: Jobs/Code-Intelligence.gitlab-ci.yml
-  - template: Jobs/Code-Quality.gitlab-ci.yml
+  - template: Jobs/Build.gitlab-ci.yml  
   - template: Jobs/Deploy.gitlab-ci.yml
 
