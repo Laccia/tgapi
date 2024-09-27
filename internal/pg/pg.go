@@ -2,6 +2,7 @@ package pg
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"tgapiV2/internal/config"
@@ -14,6 +15,17 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+type RawMSG struct {
+	Messages []RawData `json:"Messages"`
+}
+
+type RawData struct {
+	Messages string           `json:"Message"`
+	MsgId    int              `json:"ID"`
+	Date     uint64           `json:"Date"`
+	ID       map[string]int64 `json:"PeerID"`
+}
 
 type DB struct {
 	db *pgxpool.Pool
@@ -111,24 +123,54 @@ func (p *DB) AddMsgPG(ctx context.Context, msg []byte, id int64) error {
 	return nil
 }
 
-func (p *DB) AddHistPG(ctx context.Context, msg string, msgid int64, date uint64, id int64) error {
+func (p *DB) AddHistPG(ctx context.Context, msg []byte) (int, error) {
+	fmt.Println("ok")
+	ms := RawMSG{}
 
-	stamp := time.Unix(int64(date), 0)
-
-	args := pgx.NamedArgs{
-		"msg":      msg,
-		"msg_id":   msgid,
-		"msg_date": stamp,
-		"chat_id":  id,
-	}
-
-	tag, err := p.db.Exec(ctx, HistoryMsg, args)
+	err := json.Unmarshal(msg, &ms)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	fmt.Println("\n", tag)
+	msgs := ms.Messages
+	step, err := p.QueryStream(ctx, msgs)
+	if err != nil {
+		return 0, err
+	}
 
-	return nil
+	return step, nil
+}
+
+func (p *DB) QueryStream(ctx context.Context, msgs []RawData) (int, error) {
+	var Msgid int
+	var Message string
+	var id int64
+	var date uint64
+	for i := range msgs {
+		fmt.Println(i)
+		Message = msgs[i].Messages
+		Msgid = msgs[i].MsgId
+		date = msgs[i].Date
+		id = msgs[i].ID["ChannelID"]
+		fmt.Println(Msgid)
+		stamp := time.Unix(int64(date), 0)
+		if Message != "" && Msgid != 0 {
+			args := pgx.NamedArgs{
+				"msg":      Message,
+				"msg_id":   Msgid,
+				"msg_date": stamp,
+				"chat_id":  id,
+			}
+
+			tag, err := p.db.Exec(ctx, HistoryMsg, args)
+			if err != nil {
+				return 0, err
+			}
+			fmt.Println("\n", tag)
+		}
+
+	}
+	fmt.Println("pg", Msgid)
+	return Msgid, nil
 }
 
 const (

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"tgapiV2/internal/pg"
+	"time"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
@@ -17,7 +17,8 @@ type MID struct {
 }
 
 type HMG struct {
-	Chats []RawDial `json:"Chats"`
+	Chats   []RawDial `json:"Chats"`
+	Message []RawText `json:"Messages"`
 }
 
 type RawDial struct {
@@ -25,13 +26,9 @@ type RawDial struct {
 	Id   int64 `json:"ID"`
 }
 
-type RawMSG struct {
-	Messages []RawText `json:"Messages"`
-}
-
 type RawText struct {
 	Message string           `json:"Message"`
-	MsgId   int64            `json:"ID"`
+	MsgId   int              `json:"ID"`
 	Date    uint64           `json:"Date"`
 	ID      map[string]int64 `json:"PeerID"`
 }
@@ -67,30 +64,33 @@ func MessageParse(ctx context.Context, update tg.MessageClass, db *pg.DB, chats 
 }
 
 func DialogsParse(ctx context.Context, client *telegram.Client, db *pg.DB, chats []int64) error {
+
 	hs := HMG{}
 
-	ms := RawMSG{}
 	dial, err := client.API().MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{OffsetPeer: &tg.InputPeerChannel{ChannelID: chats[0]}})
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	dialogs, err := json.MarshalIndent(dial, "", "")
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	err = json.Unmarshal(dialogs, &hs)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	ids := hs.Chats
-	err = os.WriteFile("utils/dialogs.json", dialogs, 0644)
-	if err != nil {
-		fmt.Println(err)
-	}
+
+	max := hs.Message
+
+	offset := make(map[int64]int)
 
 	dil := make(map[int64]int64)
+
 	for i := range ids {
 		dil[ids[i].Id] = ids[i].Hash
+		offset[ids[i].Id] = max[i].MsgId
+
 	}
 
 	positive := make(map[int64]int64)
@@ -98,52 +98,58 @@ func DialogsParse(ctx context.Context, client *telegram.Client, db *pg.DB, chats
 	for _, v := range chats {
 		if _, ok := dil[v]; ok {
 			positive[v] = dil[v]
+
 		}
 
 	}
 
 	for chat, hash := range positive {
-		history, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-			Peer: &tg.InputPeerChannel{
-				ChannelID:  chat,
-				AccessHash: hash,
-			},
-			Limit: 100,
-		})
+		step := offset[chat]
+		fmt.Println("LOL", step)
 
-		if err != nil {
-			fmt.Println(err)
-		}
+		for {
 
-		messages, err := json.MarshalIndent(history, "", "")
-		if err != nil {
-			fmt.Println(err)
-		}
+			fmt.Println("step", step)
 
-		err = json.Unmarshal(messages, &ms)
-		if err != nil {
-			fmt.Println(err)
-		}
-		msgs := ms.Messages
-		var msgid int64
-		var msg string
-		var id int64
-		var date uint64
+			if step != 0 {
+				time.Sleep(1000 * time.Millisecond)
+				history, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
+					Peer: &tg.InputPeerChannel{
+						ChannelID:  chat,
+						AccessHash: hash,
+					},
+					OffsetID: step, Limit: 100,
+				})
 
-		for i := range msgs {
-			msg = msgs[i].Message
-			msgid = msgs[i].MsgId
-			date = msgs[i].Date
-			id = msgs[i].ID["ChannelID"]
-			err := db.AddHistPG(ctx, msg, msgid, date, id)
+				fmt.Println("STEP", step)
+				if err != nil {
+					return err
+				}
 
-			if err != nil {
-				fmt.Println(err)
+				messages, err := json.MarshalIndent(history, "", "")
+				if err != nil {
+					return err
+				}
+
+				err = json.Unmarshal(messages, &hs)
+				if err != nil {
+					return err
+				}
+				fmt.Println("BYTE", messages)
+				pgstep, err := db.AddHistPG(ctx, messages)
+				if err != nil {
+					return err
+				}
+
+				step = pgstep
+
+			} else {
+				break
 			}
-
 		}
-	}
 
+	}
+	fmt.Println(offset)
 	return nil
 
 }
