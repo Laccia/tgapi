@@ -92,7 +92,7 @@ func (mgs *Mgs) DialogsParse(ctx context.Context) error {
 		}
 
 		if rows == 0 {
-			err = AllHistoryADD(ctx, mgs.Offset, chat, hash, mgs.Hs, mgs.Client, mgs.DB)
+			err = mgs.AllHistoryADD(ctx, chat, hash)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -103,7 +103,7 @@ func (mgs *Mgs) DialogsParse(ctx context.Context) error {
 				fmt.Println(err)
 				continue
 			}
-			err = HistoryAdd(ctx, step, chat, hash, mgs.Hs, mgs.Client, mgs.DB)
+			err = mgs.HistoryAdd(ctx, step, chat, hash)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -115,16 +115,15 @@ func (mgs *Mgs) DialogsParse(ctx context.Context) error {
 
 }
 
-func AllHistoryADD(ctx context.Context, offset map[int64]int, chat int64, hash int64, hs HMG, client *telegram.Client, db *pg.DB) error {
-	step := offset[chat]
+func (mgs *Mgs) AllHistoryADD(ctx context.Context, chat int64, hash int64) error {
+	step := mgs.Offset[chat]
 	step = step + 1
 	for {
 
 		fmt.Println("step", step)
-
 		if step != 0 {
 			time.Sleep(1000 * time.Millisecond)
-			history, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
+			history, err := mgs.Client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
 				Peer: &tg.InputPeerChannel{
 					ChannelID:  chat,
 					AccessHash: hash,
@@ -142,12 +141,12 @@ func AllHistoryADD(ctx context.Context, offset map[int64]int, chat int64, hash i
 				return err
 			}
 
-			err = json.Unmarshal(messages, &hs)
+			err = json.Unmarshal(messages, &mgs.Hs)
 			if err != nil {
 				return err
 			}
 			fmt.Println("BYTE", messages)
-			pgstep, err := db.AddAllHistPG(ctx, messages)
+			pgstep, err := mgs.DB.AddAllHistPG(ctx, messages)
 			if err != nil {
 				return err
 			}
@@ -161,7 +160,7 @@ func AllHistoryADD(ctx context.Context, offset map[int64]int, chat int64, hash i
 	return nil
 }
 
-func HistoryAdd(ctx context.Context, offset int, chat int64, hash int64, hs HMG, client *telegram.Client, db *pg.DB) error {
+func (mgs *Mgs) HistoryAdd(ctx context.Context, offset int, chat int64, hash int64) error {
 	step := offset
 	for {
 
@@ -169,7 +168,7 @@ func HistoryAdd(ctx context.Context, offset int, chat int64, hash int64, hs HMG,
 
 		if step != 0 {
 			time.Sleep(1000 * time.Millisecond)
-			history, err := client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
+			history, err := mgs.Client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
 				Peer: &tg.InputPeerChannel{
 					ChannelID:  chat,
 					AccessHash: hash,
@@ -187,12 +186,12 @@ func HistoryAdd(ctx context.Context, offset int, chat int64, hash int64, hs HMG,
 				return err
 			}
 
-			err = json.Unmarshal(messages, &hs)
+			err = json.Unmarshal(messages, &mgs.Hs)
 			if err != nil {
 				return err
 			}
 			fmt.Println("BYTE", messages)
-			pgstep, err := db.AddHistPG(ctx, messages)
+			pgstep, err := mgs.DB.AddHistPG(ctx, messages)
 			if err != nil {
 				return err
 			}
