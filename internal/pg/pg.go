@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"tgapiV2/internal/config"
+
 	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -14,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
 )
 
 type RawMSG struct {
@@ -66,42 +67,9 @@ func newPg(ctx context.Context,
 
 }
 
-func Start(con *pgxpool.Pool) {
-
-	// m, err := migrate.New(
-	// 	"./internal/migrations/*sql",
-	// 	"postgres://postgres:postgres@localhost:5432/example?sslmode=disable")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	log.Fatal()
-	// }
-	// if err := m.Up(); err != nil {
-	// 	fmt.Println(err)
-	// 	log.Fatal()
-	// }
-
-	ctx := context.Background()
-
-	tmp, err := con.Query(ctx, msgTable)
-	tmp.Close()
-	if err != nil {
-		os.Exit(1)
-	}
-	tmp1, err := con.Query(ctx, histTable)
-	tmp1.Close()
-	if err != nil {
-		os.Exit(1)
-	}
-}
-
 const (
-	msgTable = `CREATE TABLE IF NOT EXISTS tgmsg (
-		id SERIAL PRIMARY KEY,
-		msg JSON NOT NULL, 
-		chat INT NOT NULL);`
-	histTable = `CREATE TABLE IF NOT EXISTS tghistory (
-		id SERIAL PRIMARY KEY,
-		msg TEXT NOT NULL);`
+	getLastId  = `SELECT MAX(msg_id) FROM tghistory WHERE chat_id=@chat;`
+	checkExist = `SELECT COUNT(*) AS total_rows FROM tghistory Where chat_id=@chat; `
 )
 
 func (p *DB) AddMsgPG(ctx context.Context, msg []byte, id int64) error {
@@ -123,6 +91,23 @@ func (p *DB) AddMsgPG(ctx context.Context, msg []byte, id int64) error {
 	return nil
 }
 
+func (p *DB) AddAllHistPG(ctx context.Context, msg []byte) (int, error) {
+	fmt.Println("ok")
+	ms := RawMSG{}
+
+	err := json.Unmarshal(msg, &ms)
+	if err != nil {
+		return 0, err
+	}
+	msgs := ms.Messages
+	step, err := p.AllQueryStream(ctx, msgs)
+	if err != nil {
+		return 0, err
+	}
+
+	return step, nil
+}
+
 func (p *DB) AddHistPG(ctx context.Context, msg []byte) (int, error) {
 	fmt.Println("ok")
 	ms := RawMSG{}
@@ -140,7 +125,49 @@ func (p *DB) AddHistPG(ctx context.Context, msg []byte) (int, error) {
 	return step, nil
 }
 
-func (p *DB) QueryStream(ctx context.Context, msgs []RawData) (int, error) {
+func (p *DB) CheckExist(ctx context.Context, chat int64) (int64, error) {
+	var rows int64
+	fmt.Println(chat)
+	args := pgx.NamedArgs{
+		"chat": chat,
+	}
+
+	tag, err := p.db.Query(ctx, checkExist, args)
+	if err != nil {
+		return 0, err
+	}
+	tag.Next()
+	err = tag.Scan(&rows)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+
+	return rows, nil
+}
+
+func (p *DB) HistoryCheck(ctx context.Context, chat int64) (int, error) {
+	var msgId int
+	fmt.Println(chat)
+	args := pgx.NamedArgs{
+		"chat": chat,
+	}
+
+	tag, err := p.db.Query(ctx, getLastId, args)
+	if err != nil {
+		return 0, err
+	}
+	tag.Next()
+	err = tag.Scan(&msgId)
+	if err != nil {
+		fmt.Println(err)
+		return 0, err
+	}
+
+	return msgId, nil
+}
+
+func (p *DB) AllQueryStream(ctx context.Context, msgs []RawData) (int, error) {
 	var Msgid int
 	var Message string
 	var id int64
@@ -171,6 +198,43 @@ func (p *DB) QueryStream(ctx context.Context, msgs []RawData) (int, error) {
 	}
 	fmt.Println("pg", Msgid)
 	return Msgid, nil
+}
+
+func (p *DB) QueryStream(ctx context.Context, msgs []RawData) (int, error) {
+	var msgid int
+	var Message string
+	var id int64
+	var date uint64
+	var step int
+	for i := range msgs {
+		fmt.Println(i)
+		Message = msgs[i].Messages
+		msgid = msgs[i].MsgId
+		if i == 0 {
+			step = msgid
+		}
+		date = msgs[i].Date
+		id = msgs[i].ID["ChannelID"]
+		fmt.Println(msgid)
+		stamp := time.Unix(int64(date), 0)
+		if Message != "" && msgid != 0 {
+			args := pgx.NamedArgs{
+				"msg":      Message,
+				"msg_id":   msgid,
+				"msg_date": stamp,
+				"chat_id":  id,
+			}
+
+			tag, err := p.db.Exec(ctx, HistoryMsg, args)
+			if err != nil {
+				return 0, err
+			}
+			fmt.Println("\n", tag)
+		}
+
+	}
+	fmt.Println("pg", step)
+	return step, nil
 }
 
 const (

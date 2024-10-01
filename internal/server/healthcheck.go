@@ -2,9 +2,9 @@ package server
 
 import (
 	"net/http"
-	"tgapiV2/internal/request"
 
 	"github.com/labstack/echo/v4"
+	"gitlab.figvam.ru/figvam/tgapi/internal/request"
 )
 
 func HealthCheck(ctx echo.Context) error {

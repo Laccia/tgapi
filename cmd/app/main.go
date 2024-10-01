@@ -1,11 +1,10 @@
 package main
 
 import (
-	"tgapiV2/internal/app"
-	"tgapiV2/internal/config"
-	"tgapiV2/pkg"
-
 	"github.com/rs/zerolog/log"
+	"gitlab.figvam.ru/figvam/tgapi/internal/app"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
+	"gitlab.figvam.ru/figvam/tgapi/pkg"
 )
 
 func main() {

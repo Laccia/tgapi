@@ -5,15 +5,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"tgapiV2/internal/config"
-	"tgapiV2/internal/pg"
-	"tgapiV2/internal/secret"
-	"tgapiV2/internal/server"
-
-	"tgapiV2/internal/tgap"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
+	"gitlab.figvam.ru/figvam/tgapi/internal/pg"
+	"gitlab.figvam.ru/figvam/tgapi/internal/secret"
+	"gitlab.figvam.ru/figvam/tgapi/internal/server"
+	"gitlab.figvam.ru/figvam/tgapi/internal/tgap"
 )
 
 func Run(
@@ -39,8 +38,8 @@ func Run(
 	}()
 
 	go func() {
-		if client := tgap.NewClient(mainCtx, cfg, logger, db, vt); client != nil {
-			panic(client)
+		if err := tgap.NewClient(mainCtx, cfg, logger, db, vt); err != nil {
+			panic(err)
 		}
 
 	}()

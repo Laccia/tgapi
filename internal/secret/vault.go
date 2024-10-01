@@ -3,10 +3,10 @@ package secret
 import (
 	"encoding/json"
 	"os"
-	"tgapiV2/internal/config"
 
 	vault "github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
 	"golang.org/x/net/context"
 )
 

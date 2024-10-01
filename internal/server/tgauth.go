@@ -2,10 +2,10 @@ package server
 
 import (
 	"encoding/json"
-	"tgapiV2/internal/sign"
 
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
+	"gitlab.figvam.ru/figvam/tgapi/internal/sign"
 )
 
 func TgAuth(ctx echo.Context) error {

@@ -1,4 +1,4 @@
-module tgapiV2
+module gitlab.figvam.ru/figvam/tgapi
 
 go 1.23.0
 

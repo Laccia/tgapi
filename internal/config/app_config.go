@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"tgapiV2/pkg"
 
 	"github.com/spf13/viper"
+	"gitlab.figvam.ru/figvam/tgapi/pkg"
 )
 
 type Appconfig struct {
