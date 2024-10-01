@@ -6,18 +6,27 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gitlab.figvam.ru/figvam/tgapi/internal/config"
 	"gitlab.figvam.ru/figvam/tgapi/internal/pg"
 	"gitlab.figvam.ru/figvam/tgapi/internal/secret"
 	"gitlab.figvam.ru/figvam/tgapi/internal/server"
 	"gitlab.figvam.ru/figvam/tgapi/internal/tgap"
+	"gitlab.figvam.ru/figvam/tgapi/pkg"
 )
 
-func Run(
-	cfg *config.Appconfig,
-	logger zerolog.Logger) error {
+func Run() {
+
+	cfg, err := config.GetAppConfig()
+	if err != nil || cfg == nil {
+		panic(err)
+	}
+
+	log.Logger = pkg.NewLogger(cfg.LogCfg)
+
+	logger := log.Logger
+
+	log.Info().Str("comp:", "main").Msg("log initiated")
 
 	mainCtx, cancelMainCtx := context.WithCancel(context.Background())
 
@@ -50,13 +59,11 @@ func Run(
 	<-killSignal
 	cancelMainCtx()
 	logger.Info().Str("comp:", "main").Msg("Graceful shutdown. This can take a while...")
-	err := secret.WriteSecret(vt, cfg, logger)
+	err = secret.WriteSecret(vt, cfg, logger)
 	if err != nil {
 		logger.Err(err).Str("Graceful", "Write Secret").Msg("error while writing secret")
 	} else {
 		logger.Info().Str("Graceful", "Write Secret").Msg("Successful")
 	}
-
-	return nil
 
 }
