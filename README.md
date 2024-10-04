@@ -1,4 +1,4 @@
-пример запроса 2FA аутентификации: curl -XPOST localhost:8000/auth -H 'Content-Type: application/json' -d '{"CODE":""}'
+пример запроса 2FA аутентификации: curl -XPOST localhost:8000/tgapi/auth -H 'Content-Type: application/json' -d '{"CODE":""}'
 
 Пример ENV:
 
