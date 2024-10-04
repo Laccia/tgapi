@@ -13,5 +13,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/$TARGET/
 
 FROM alpine:3.20
 COPY --from=builder /tgapi/$TARGET /bin
+COPY --from=builder $PATH_PROJECT/migrations migrations
 CMD ["/bin/app"]
 EXPOSE  8000
