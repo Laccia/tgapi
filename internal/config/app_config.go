@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"tgapiV2/pkg"
 
 	"github.com/spf13/viper"
+	"gitlab.figvam.ru/figvam/tgapi/pkg"
 )
 
 type Appconfig struct {
@@ -16,12 +16,7 @@ type Appconfig struct {
 }
 
 type Dbconfig struct {
-	URL  string
-	Name string
-	Pass string
-	Addr string
-	Port string
-	Base string
+	URL string
 }
 
 type TGconfig struct {
@@ -100,12 +95,7 @@ func GetAppConfig() (*Appconfig, error) {
 	cfg.ServicePort = cfgParse.Port
 
 	cfg.Dbconfig = Dbconfig{
-		URL:  cfgParse.PGHost,
-		Name: cfgParse.PGName,
-		Pass: cfgParse.PGPass,
-		Addr: cfgParse.PGAddr,
-		Port: cfgParse.PGPort,
-		Base: cfgParse.PGBase,
+		URL: cfgParse.PGHost,
 	}
 
 	cfg.TGconfig = TGconfig{

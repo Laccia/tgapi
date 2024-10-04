@@ -2,93 +2,82 @@ package tgap
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"tgapiV2/internal/config"
-	"tgapiV2/internal/parser"
-	"tgapiV2/internal/pg"
-	"tgapiV2/internal/sign"
+
+	"time"
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
-	"github.com/gotd/td/telegram/updates"
-	updhook "github.com/gotd/td/telegram/updates/hook"
-	"github.com/gotd/td/tg"
 	"github.com/hashicorp/vault/api"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
+	"gitlab.figvam.ru/figvam/tgapi/internal/parser"
+	"gitlab.figvam.ru/figvam/tgapi/internal/pg"
 )
 
-func NewClient(ctx context.Context,
-	cfg *config.Appconfig,
-	logger zerolog.Logger, db *pg.DB, vt *api.Client) error {
+type TgClient struct {
+	cfg    *config.Appconfig
+	logger zerolog.Logger
+	db     *pg.DB
+	vt     *api.Client
+	client *telegram.Client
+	flow   auth.Flow
+}
 
+func New(cfg *config.Appconfig,
+	logger zerolog.Logger, db *pg.DB, vt *api.Client) *TgClient {
 	if err := godotenv.Load(); err != nil {
 		log.Print("No .env file found")
 	}
-	d := tg.NewUpdateDispatcher()
 
-	gaps := updates.New(updates.Config{
-		Handler: d,
-	})
+	flow := auth.NewFlow(Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowFlashCall: true})
 
-	flow := auth.NewFlow(sign.Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowAppHash: true})
+	client, _ := telegram.ClientFromEnvironment(telegram.Options{NoUpdates: true})
+	return &TgClient{logger: logger, db: db, vt: vt, flow: flow, client: client, cfg: cfg}
 
-	client, err := telegram.ClientFromEnvironment(telegram.Options{UpdateHandler: gaps,
-		Middlewares: []telegram.Middleware{
-			updhook.UpdateHook(gaps.Handle),
-		}})
+}
+
+func (t *TgClient) NewClient(ctx context.Context) error {
+
+	return t.client.Run(ctx, t.clientFunc)
+
+}
+
+func (t *TgClient) clientFunc(ctx context.Context) error {
+
+	// Perform auth if no session is available.
+	if err := t.client.Auth().IfNecessary(ctx, t.flow); err != nil {
+		return errors.Wrap(err, "auth")
+	}
+
+	mgs, err := parser.New(ctx, t.client, t.db, t.cfg.Chats)
 	if err != nil {
+		t.logger.Fatal().Err(err).Str("comp:", "NewHistory").Msg("Error while download history")
 		return err
 	}
-	// Setup message update handlers.
-	d.OnNewChannelMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewChannelMessage) error {
-		logger.Info().Any("asd", update.Message).Msg("message")
-		msg := update.Message
-		err := parser.MessageParse(ctx, msg, db, cfg.Chats)
+
+	err = mgs.DialogsParse(ctx)
+	if err != nil {
+		t.logger.Fatal().Err(err).Str("comp", "DialogParse").Msg("Error while checking availability rows in base")
+		return err
+	}
+
+	t.logger.Info().Str("comp:", "main").Msg("History successfully downloaded")
+
+	t.logger.Info().Str("comp:", "main").Msg("Application started")
+
+	for {
+		time.Sleep(1 * time.Minute)
+		t.logger.Info().Str("comp:", "main").Msg("Checking for new messages")
+		err := mgs.DialogsParse(ctx)
 		if err != nil {
-			logger.Err(err).Str("OnChannel", "message").Msg("err while parse message")
+			t.logger.Err(err).Str("comp:", "main").Msg("Error while downloading new messages")
 		}
-		return nil
-	})
-	d.OnNewMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewMessage) error {
-		logger.Info().Any("asd", update.Message).Msg("message")
-		msg := update.Message
-		err := parser.MessageParse(ctx, msg, db, cfg.Chats)
-		if err != nil {
-			logger.Err(err).Str("OnChannel", "message").Msg("err while parse message")
-		}
-		return nil
-	})
+		t.logger.Info().Str("comp:", "main").Msg("check complete")
 
-	return client.Run(ctx, func(ctx context.Context) error {
+	}
 
-		// Perform auth if no session is available.
-		if err := client.Auth().IfNecessary(ctx, flow); err != nil {
-			return errors.Wrap(err, "auth")
-		}
-
-		// Fetch user info.
-		user, err := client.Self(ctx)
-		if err != nil {
-			return errors.Wrap(err, "call self")
-		}
-
-		return gaps.Run(ctx, client.API(), user.ID, updates.AuthOptions{
-			OnStart: func(ctx context.Context) {
-
-				err := parser.DialogsParse(ctx, client, db, cfg.Chats)
-				if err != nil {
-					fmt.Println(err)
-					logger.Err(err).Str("comp", "main").Msg("Error while download history")
-				}
-
-				logger.Info().Str("comp:", "main").Msg("History successfully downloaded")
-
-				logger.Info().Str("comp:", "main").Msg("Application started")
-
-			},
-		})
-	})
 }

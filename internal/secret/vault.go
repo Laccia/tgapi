@@ -3,14 +3,14 @@ package secret
 import (
 	"encoding/json"
 	"os"
-	"tgapiV2/internal/config"
 
 	vault "github.com/hashicorp/vault/api"
 	"github.com/rs/zerolog"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
 	"golang.org/x/net/context"
 )
 
-func NewVault(ctx context.Context, cfg *config.Appconfig, log zerolog.Logger) *vault.Client {
+func New(ctx context.Context, cfg *config.Appconfig, log zerolog.Logger) *vault.Client {
 
 	config := vault.DefaultConfig()
 
@@ -23,7 +23,7 @@ func NewVault(ctx context.Context, cfg *config.Appconfig, log zerolog.Logger) *v
 
 	client.SetToken(cfg.Token)
 
-	err = ReadSecret(client, cfg, log)
+	err = readSecret(client, cfg, log)
 	if err != nil {
 		log.Err(err).Str("vault", "read/secret").Msg("error while read secret from vault. Session file will create from auth")
 	}
@@ -31,8 +31,7 @@ func NewVault(ctx context.Context, cfg *config.Appconfig, log zerolog.Logger) *v
 	return client
 }
 
-func ReadSecret(client *vault.Client, cfg *config.Appconfig, log zerolog.Logger) error {
-
+func readSecret(client *vault.Client, cfg *config.Appconfig, log zerolog.Logger) error {
 	secret, err := client.KVv2(cfg.MountPath).Get(context.Background(), cfg.ReadPath)
 	if err != nil {
 		return err
@@ -40,7 +39,7 @@ func ReadSecret(client *vault.Client, cfg *config.Appconfig, log zerolog.Logger)
 
 	file, _ := json.Marshal(secret.Data)
 
-	err = os.WriteFile(cfg.File, file, 0777)
+	err = os.WriteFile(cfg.File, file, 0644)
 	if err != nil {
 		return err
 	}

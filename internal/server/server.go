@@ -37,7 +37,7 @@ func (h *Handler) SetRoutes() *echo.Echo {
 
 	e.GET("/healthcheck", HealthCheck)
 
-	e.POST("/auth", TgAuth)
+	e.POST("/tgapi/auth", TgAuth)
 	return e
 }
 

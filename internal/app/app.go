@@ -5,33 +5,41 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"tgapiV2/internal/config"
-	"tgapiV2/internal/pg"
-	"tgapiV2/internal/secret"
-	"tgapiV2/internal/server"
 
-	"tgapiV2/internal/tgap"
-
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gitlab.figvam.ru/figvam/tgapi/internal/config"
+	"gitlab.figvam.ru/figvam/tgapi/internal/pg"
+	"gitlab.figvam.ru/figvam/tgapi/internal/secret"
+	"gitlab.figvam.ru/figvam/tgapi/internal/server"
+	"gitlab.figvam.ru/figvam/tgapi/internal/tgap"
+	"gitlab.figvam.ru/figvam/tgapi/pkg"
 )
 
-func Run(
-	cfg *config.Appconfig,
-	logger zerolog.Logger) error {
+func Run() {
+
+	cfg, err := config.GetAppConfig()
+	if err != nil || cfg == nil {
+		panic(err)
+	}
+
+	log.Logger = pkg.NewLogger(cfg.LogCfg)
+
+	logger := log.Logger
+
+	log.Info().Str("comp:", "main").Msg("log initiated")
 
 	mainCtx, cancelMainCtx := context.WithCancel(context.Background())
 
 	db := pg.New(mainCtx, cfg, logger)
 
-	vt := secret.NewVault(mainCtx, cfg, logger)
+	vt := secret.New(mainCtx, cfg, logger)
 
 	handler := server.NewHandler(logger)
 
 	router := handler.SetRoutes()
 	log.Info().Str("comp:", "app/set routes").Msg("Routes set")
-
 	go func() {
+
 		err := router.Start(":" + cfg.ServicePort)
 		if err != nil {
 			log.Fatal().Err(err).Str("Server", "Start").Msg("Error while starting server")
@@ -39,25 +47,26 @@ func Run(
 	}()
 
 	go func() {
-		if client := tgap.NewClient(mainCtx, cfg, logger, db, vt); client != nil {
-			panic(client)
-		}
 
+		if err := tgap.New(cfg, logger, db, vt).NewClient(mainCtx); err != nil {
+			log.Fatal().Err(err).Str("Tgap", "Start").Msg("Error while starting tgap client")
+		}
 	}()
 
 	//Wait kill signal
 	killSignal := make(chan os.Signal, 1)
 	signal.Notify(killSignal, syscall.SIGINT, syscall.SIGTERM)
+
 	<-killSignal
-	cancelMainCtx()
 	logger.Info().Str("comp:", "main").Msg("Graceful shutdown. This can take a while...")
-	err := secret.WriteSecret(vt, cfg, logger)
+
+	err = secret.WriteSecret(vt, cfg, logger)
 	if err != nil {
 		logger.Err(err).Str("Graceful", "Write Secret").Msg("error while writing secret")
 	} else {
 		logger.Info().Str("Graceful", "Write Secret").Msg("Successful")
 	}
 
-	return nil
+	cancelMainCtx()
 
 }
