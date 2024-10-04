@@ -3,8 +3,6 @@ package parser
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-
 	"time"
 
 	"github.com/gotd/td/telegram"
@@ -31,20 +29,22 @@ type RawText struct {
 
 type Mgs struct {
 	Positive map[int64]int64
-	Offset   map[int64]int
 	Hs       HMG
 	Client   *telegram.Client
 	DB       *pg.DB
 }
 
-func NewHistory(ctx context.Context, client *telegram.Client, db *pg.DB, chats []int64) (*Mgs, error) {
+func New(ctx context.Context, client *telegram.Client, db *pg.DB, chats []int64) (*Mgs, error) {
 
 	hs := HMG{}
 
-	dial, err := client.API().MessagesGetDialogs(ctx, &tg.MessagesGetDialogsRequest{OffsetPeer: &tg.InputPeerChannel{ChannelID: chats[0]}})
+	dial, err := client.API().MessagesGetDialogs(ctx,
+		&tg.MessagesGetDialogsRequest{OffsetPeer: &tg.InputPeerChannel{ChannelID: chats[0]}, Limit: 100})
+
 	if err != nil {
 		return nil, err
 	}
+
 	dialogs, err := json.MarshalIndent(dial, "", "")
 	if err != nil {
 		return nil, err
@@ -53,18 +53,15 @@ func NewHistory(ctx context.Context, client *telegram.Client, db *pg.DB, chats [
 	if err != nil {
 		return nil, err
 	}
+
 	ids := hs.Chats
 
 	max := hs.Message
 
-	offset := make(map[int64]int)
-
 	dil := make(map[int64]int64)
 
-	for i := range ids {
+	for i := range max {
 		dil[ids[i].Id] = ids[i].Hash
-		offset[ids[i].Id] = max[i].MsgId
-
 	}
 
 	positive := make(map[int64]int64)
@@ -77,7 +74,7 @@ func NewHistory(ctx context.Context, client *telegram.Client, db *pg.DB, chats [
 
 	}
 
-	return &Mgs{Positive: positive, Offset: offset, Hs: hs, Client: client, DB: db}, nil
+	return &Mgs{Positive: positive, Hs: hs, Client: client, DB: db}, nil
 
 }
 
@@ -85,117 +82,63 @@ func (mgs *Mgs) DialogsParse(ctx context.Context) error {
 
 	for chat, hash := range mgs.Positive {
 		rows, err := mgs.DB.CheckExist(ctx, chat)
-		fmt.Println(rows)
+
 		if err != nil {
-			fmt.Println(err)
-			continue
+			return err
 		}
 
 		if rows == 0 {
-			err = mgs.AllHistoryADD(ctx, chat, hash)
+			step := 1
+			err = mgs.HistoryAdd(ctx, step, chat, hash)
 			if err != nil {
-				fmt.Println(err)
-				continue
+				return err
 			}
 		} else {
 			step, err := mgs.DB.HistoryCheck(ctx, chat)
 			if err != nil {
-				fmt.Println(err)
-				continue
+				return err
 			}
 			err = mgs.HistoryAdd(ctx, step, chat, hash)
 			if err != nil {
-				fmt.Println(err)
-				continue
+				return err
 			}
 		}
 
 	}
 	return nil
 
-}
-
-func (mgs *Mgs) AllHistoryADD(ctx context.Context, chat int64, hash int64) error {
-	step := mgs.Offset[chat]
-	step = step + 1
-	for {
-
-		fmt.Println("step", step)
-		if step != 0 {
-			time.Sleep(1000 * time.Millisecond)
-			history, err := mgs.Client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-				Peer: &tg.InputPeerChannel{
-					ChannelID:  chat,
-					AccessHash: hash,
-				},
-				OffsetID: step, Limit: 100,
-			})
-
-			fmt.Println("STEP", step)
-			if err != nil {
-				return err
-			}
-
-			messages, err := json.MarshalIndent(history, "", "")
-			if err != nil {
-				return err
-			}
-
-			err = json.Unmarshal(messages, &mgs.Hs)
-			if err != nil {
-				return err
-			}
-			fmt.Println("BYTE", messages)
-			pgstep, err := mgs.DB.AddAllHistPG(ctx, messages)
-			if err != nil {
-				return err
-			}
-
-			step = pgstep
-
-		} else {
-			break
-		}
-	}
-	return nil
 }
 
 func (mgs *Mgs) HistoryAdd(ctx context.Context, offset int, chat int64, hash int64) error {
 	step := offset
 	for {
+		time.Sleep(1 * time.Second)
+		history, err := mgs.Client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
+			Peer: &tg.InputPeerChannel{
+				ChannelID:  chat,
+				AccessHash: hash,
+			},
+			OffsetID: step, Limit: 100, AddOffset: -100,
+		})
 
-		fmt.Println("step", step)
+		if err != nil {
+			return err
+		}
 
-		if step != 0 {
-			time.Sleep(1000 * time.Millisecond)
-			history, err := mgs.Client.API().MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-				Peer: &tg.InputPeerChannel{
-					ChannelID:  chat,
-					AccessHash: hash,
-				},
-				MinID: step, Limit: 100,
-			})
+		messages, err := json.MarshalIndent(history, "", "")
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(messages, &mgs.Hs)
+		if err != nil {
+			return err
+		}
+		if step != mgs.Hs.Message[0].MsgId {
 
-			fmt.Println("STEP", step)
-			if err != nil {
-				return err
-			}
-
-			messages, err := json.MarshalIndent(history, "", "")
-			if err != nil {
-				return err
-			}
-
-			err = json.Unmarshal(messages, &mgs.Hs)
-			if err != nil {
-				return err
-			}
-			fmt.Println("BYTE", messages)
 			pgstep, err := mgs.DB.AddHistPG(ctx, messages)
 			if err != nil {
 				return err
 			}
-
 			step = pgstep
 
 		} else {
