@@ -28,7 +28,7 @@ type TgClient struct {
 
 func New(cfg *config.Appconfig,
 	logger zerolog.Logger, db *pg.DB, vt *api.Client) *TgClient {
-
+	logger.Info().Str("comp:", "tgap").Any("ID:=", cfg.ID).Msg("Debug LOG")
 	flow := auth.NewFlow(Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowFlashCall: true})
 	client := telegram.NewClient(cfg.ID, cfg.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: cfg.File}})
 	return &TgClient{logger: logger, db: db, vt: vt, flow: flow, client: client, cfg: cfg}
