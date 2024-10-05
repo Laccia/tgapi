@@ -50,8 +50,8 @@ type AppConfigParseStruct struct {
 	PGBase string `mapstructure:"PH_BASE"`
 
 	//TG config
-	APPID           int     `mapstructure:"TG_APP_ID"`
-	APPHash         string  `mapstructure:"TG_APP_HASH"`
+	APPID           int     `mapstructure:"APP_ID"`
+	APPHash         string  `mapstructure:"APP_HASH"`
 	SessionFile     string  `mapstructure:"SESSION_FILE"`
 	SessionDir      string  `mapstructure:"SESSION_DIR"`
 	SessionTemplate string  `mapstructure:"TG_SESSION_TEMPLATE"`

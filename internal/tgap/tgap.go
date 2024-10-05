@@ -2,14 +2,13 @@ package tgap
 
 import (
 	"context"
-	"log"
 
 	"time"
 
+	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
 	"github.com/hashicorp/vault/api"
-	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -29,13 +28,9 @@ type TgClient struct {
 
 func New(cfg *config.Appconfig,
 	logger zerolog.Logger, db *pg.DB, vt *api.Client) *TgClient {
-	if err := godotenv.Load(); err != nil {
-		log.Print("No .env file found")
-	}
 
 	flow := auth.NewFlow(Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowFlashCall: true})
-
-	client, _ := telegram.ClientFromEnvironment(telegram.Options{NoUpdates: true})
+	client := telegram.NewClient(cfg.ID, cfg.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: cfg.File}})
 	return &TgClient{logger: logger, db: db, vt: vt, flow: flow, client: client, cfg: cfg}
 
 }
@@ -47,7 +42,6 @@ func (t *TgClient) NewClient(ctx context.Context) error {
 }
 
 func (t *TgClient) clientFunc(ctx context.Context) error {
-
 	// Perform auth if no session is available.
 	if err := t.client.Auth().IfNecessary(ctx, t.flow); err != nil {
 		return errors.Wrap(err, "auth")
