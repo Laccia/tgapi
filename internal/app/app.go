@@ -45,7 +45,7 @@ func Run() {
 			log.Fatal().Err(err).Str("Server", "Start").Msg("Error while starting server")
 		}
 	}()
-
+	logger.Info().Str("comp:", "tgap").Any("ID:=", cfg.ID).Msg("Debug LOG")
 	go func() {
 
 		if err := tgap.New(cfg, logger, db, vt).NewClient(mainCtx); err != nil {
