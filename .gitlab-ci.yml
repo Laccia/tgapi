@@ -1,3 +1,7 @@
+variables:
+  HELM_UPGRADE_EXTRA_ARGS: "--timeout 5m"
+
+
 stages:
   - build  
   - review
