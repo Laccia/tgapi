@@ -8,7 +8,6 @@ import (
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
-	"github.com/hashicorp/vault/api"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -21,17 +20,16 @@ type TgClient struct {
 	cfg    *config.Appconfig
 	logger zerolog.Logger
 	db     *pg.DB
-	vt     *api.Client
 	client *telegram.Client
 	flow   auth.Flow
 }
 
 func New(cfg *config.Appconfig,
-	logger zerolog.Logger, db *pg.DB, vt *api.Client) *TgClient {
+	logger zerolog.Logger, db *pg.DB) *TgClient {
 	logger.Info().Str("comp:", "tgap").Any("ID:=", cfg.ID).Msg("Debug LOG")
 	flow := auth.NewFlow(Sign{PhoneNumber: cfg.Phone}, auth.SendCodeOptions{AllowFlashCall: true})
 	client := telegram.NewClient(cfg.ID, cfg.Hash, telegram.Options{SessionStorage: &session.FileStorage{Path: cfg.File}})
-	return &TgClient{logger: logger, db: db, vt: vt, flow: flow, client: client, cfg: cfg}
+	return &TgClient{logger: logger, db: db, flow: flow, client: client, cfg: cfg}
 
 }
 

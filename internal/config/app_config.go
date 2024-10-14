@@ -10,7 +10,6 @@ import (
 type Appconfig struct {
 	Dbconfig
 	TGconfig
-	VTconfig
 	LogCfg      pkg.Config
 	ServicePort string
 }
@@ -27,14 +26,6 @@ type TGconfig struct {
 	Templ string
 	Phone string
 	Chats []int64
-}
-
-type VTconfig struct {
-	Host      string
-	Token     string
-	MountPath string
-	WritePath string
-	ReadPath  string
 }
 
 type AppConfigParseStruct struct {
@@ -58,13 +49,6 @@ type AppConfigParseStruct struct {
 	PhoneNumber     string  `mapstructure:"PHONE_NUMBER"`
 	ChatID          []int64 `mapstructure:"CHAT_ID"`
 
-	//VT config
-	VaultHost      string `mapstructure:"VT_HOST"`
-	VaultToken     string `mapstructure:"VT_TOKEN"`
-	VaultMountPath string `mapstructure:"VT_MOUNT_PATH"`
-	VaultWritePath string `mapstructure:"VT_WRITE_PATH"`
-	VaultReadPath  string `mapstructure:"VT_READ_PATH"`
-
 	//Logger settings
 	// Logger settings
 	LogLevel    pkg.LogLevel       `mapstructure:"LEVEL"`
@@ -77,8 +61,6 @@ func GetAppConfig() (*Appconfig, error) {
 	viper.SetDefault("TG_SESSION_DIR", "utils")
 	viper.SetDefault("TG_SESSION_TEMPLATE", "/app/files/template.json")
 	viper.SetDefault("PG_HOST", "postgres://postgres:password@localhost:5432/tg")
-	viper.SetDefault("VT_MOUNT_PATH", "kv")
-	viper.SetDefault("VT_READ_PAT", "my-secret-password")
 	viper.SetDefault("PORT", "8000")
 
 	viper.SetDefault("LEVEL", "info")
@@ -106,14 +88,6 @@ func GetAppConfig() (*Appconfig, error) {
 		Templ: cfgParse.SessionTemplate,
 		Chats: cfgParse.ChatID,
 		Phone: cfgParse.PhoneNumber,
-	}
-
-	cfg.VTconfig = VTconfig{
-		Host:      cfgParse.VaultHost,
-		Token:     cfgParse.VaultToken,
-		MountPath: cfgParse.VaultMountPath,
-		WritePath: cfgParse.VaultWritePath,
-		ReadPath:  cfgParse.VaultReadPath,
 	}
 
 	cfg.LogCfg = pkg.Config{

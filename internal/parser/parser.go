@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/gotd/td/telegram"
@@ -13,6 +14,7 @@ import (
 type HMG struct {
 	Chats   []RawDial `json:"Chats"`
 	Message []RawText `json:"Messages"`
+	User    []Users   `json:"Users"`
 }
 
 type RawDial struct {
@@ -25,6 +27,7 @@ type RawText struct {
 	MsgId   int              `json:"ID"`
 	Date    uint64           `json:"Date"`
 	ID      map[string]int64 `json:"PeerID"`
+	User    map[string]int   `json:"FromID"`
 }
 
 type Mgs struct {
@@ -32,6 +35,16 @@ type Mgs struct {
 	Hs       HMG
 	Client   *telegram.Client
 	DB       *pg.DB
+}
+
+type Users struct {
+	ID         int    `json:"ID"`
+	AccessHash int64  `json:"AccessHash"`
+	FirstName  string `json:"FirstName"`
+	LastName   string `json:"LastName"`
+	Username   string `json:"Username"`
+	Phone      string `json:"Phone"`
+	Premium    bool   `json:"Premium"`
 }
 
 func New(ctx context.Context, client *telegram.Client, db *pg.DB, chats []int64) (*Mgs, error) {
@@ -53,7 +66,10 @@ func New(ctx context.Context, client *telegram.Client, db *pg.DB, chats []int64)
 	if err != nil {
 		return nil, err
 	}
-
+	err = os.WriteFile("utils/dialogs.json", dialogs, 0644)
+	if err != nil {
+		println(err)
+	}
 	ids := hs.Chats
 
 	max := hs.Message
@@ -133,9 +149,18 @@ func (mgs *Mgs) HistoryAdd(ctx context.Context, offset int, chat int64, hash int
 		if err != nil {
 			return err
 		}
+
+		if mgs.Hs.Message == nil {
+			break
+		}
+
 		if step != mgs.Hs.Message[0].MsgId {
 
 			pgstep, err := mgs.DB.AddHistPG(ctx, messages)
+			if err != nil {
+				return err
+			}
+			err = mgs.DB.AddUsersPG(ctx, messages)
 			if err != nil {
 				return err
 			}

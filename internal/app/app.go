@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"gitlab.figvam.ru/figvam/tgapi/internal/config"
 	"gitlab.figvam.ru/figvam/tgapi/internal/pg"
-	"gitlab.figvam.ru/figvam/tgapi/internal/secret"
 	"gitlab.figvam.ru/figvam/tgapi/internal/server"
 	"gitlab.figvam.ru/figvam/tgapi/internal/tgap"
 	"gitlab.figvam.ru/figvam/tgapi/pkg"
@@ -32,8 +31,6 @@ func Run() {
 
 	db := pg.New(mainCtx, cfg, logger)
 
-	vt := secret.New(mainCtx, cfg, logger)
-
 	handler := server.NewHandler(logger)
 
 	router := handler.SetRoutes()
@@ -48,7 +45,7 @@ func Run() {
 	logger.Info().Str("comp:", "tgap").Any("ID:=", cfg.ID).Msg("Debug LOG")
 	go func() {
 
-		if err := tgap.New(cfg, logger, db, vt).NewClient(mainCtx); err != nil {
+		if err := tgap.New(cfg, logger, db).NewClient(mainCtx); err != nil {
 			log.Fatal().Err(err).Str("Tgap", "Start").Msg("Error while starting tgap client")
 		}
 	}()
@@ -59,13 +56,6 @@ func Run() {
 
 	<-killSignal
 	logger.Info().Str("comp:", "main").Msg("Graceful shutdown. This can take a while...")
-
-	err = secret.WriteSecret(vt, cfg, logger)
-	if err != nil {
-		logger.Err(err).Str("Graceful", "Write Secret").Msg("error while writing secret")
-	} else {
-		logger.Info().Str("Graceful", "Write Secret").Msg("Successful")
-	}
 
 	cancelMainCtx()
 
