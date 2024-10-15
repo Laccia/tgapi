@@ -134,7 +134,7 @@ func (mgs *Mgs) HistoryAdd(ctx context.Context, offset int, chat int64, hash int
 				ChannelID:  chat,
 				AccessHash: hash,
 			},
-			OffsetID: step, Limit: 100, AddOffset: -100,
+			OffsetID: step, Limit: 100, AddOffset: -101,
 		})
 
 		if err != nil {

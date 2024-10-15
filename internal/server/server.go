@@ -31,6 +31,7 @@ func NewHandler(
 func (h *Handler) SetRoutes() *echo.Echo {
 
 	e := echo.New()
+
 	e.Use(middleware.Recover())
 
 	e.Use(h.setTimeoutMiddleware)
