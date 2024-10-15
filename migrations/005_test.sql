@@ -1,1 +1,1 @@
-DROP DATABASE IF EXISTS tghistory;
+DROP TABLE IF EXISTS tghistory;
